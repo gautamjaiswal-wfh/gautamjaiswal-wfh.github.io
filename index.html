@@ -832,7 +832,7 @@ function gclose(){gwin.classList.remove('open');gbtn.classList.remove('open')}
 
 gbtn.addEventListener('click',()=>gwin.classList.contains('open')?gclose():gopen());
 gcl.addEventListener('click',gclose);
-gkok.addEventListener('click',()=>{const k=gkin.value.trim();if(!k.startsWith('sk-ant')){gkin.style.borderColor='var(--rose)';gkin.placeholder='⚠️ Must start with sk-ant-...';return}apiKey=k;demo=false;gact()});
+apiKey=k;demo=false;gact()});
 gskip.addEventListener('click',()=>{demo=true;gact()});
 gkin.addEventListener('keydown',e=>{if(e.key==='Enter')gkok.click()});
 ginp.addEventListener('input',gar);
