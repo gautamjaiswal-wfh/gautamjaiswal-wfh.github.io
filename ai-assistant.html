@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gautam AI Assistant — Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+  <style>
+    /* ═══ DEMO PAGE BG ═══ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #050811;
+      color: #e0e8ff;
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+    }
+    .demo-bg {
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 70% 60% at 20% 40%, rgba(124,58,237,.1), transparent),
+        radial-gradient(ellipse 60% 50% at 80% 60%, rgba(34,211,238,.07), transparent);
+    }
+    .demo-text {
+      text-align: center; z-index: 1; opacity: .5;
+      font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 700;
+      color: rgba(160,180,220,.4); letter-spacing: .04em;
+      pointer-events: none;
+    }
+    .demo-text span {
+      display: block; font-size: .8rem; font-weight: 400;
+      font-family: 'DM Sans', sans-serif; margin-top: 8px; letter-spacing: .02em;
+    }
+
+    /* ═══════════════════════════════════════════
+       AI ASSISTANT WIDGET
+    ═══════════════════════════════════════════ */
+
+    /* Floating button */
+    #gai-btn {
+      position: fixed; bottom: 28px; right: 28px; z-index: 9000;
+      width: 62px; height: 62px; border-radius: 50%;
+      background: linear-gradient(135deg, #7c3aed, #06b6d4);
+      border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 24px rgba(124,58,237,.55), 0 0 0 0 rgba(124,58,237,.4);
+      transition: transform .2s, box-shadow .2s;
+      animation: gaiBtnPulse 2.8s ease-in-out infinite;
+    }
+    #gai-btn:hover { transform: scale(1.1); animation: none; box-shadow: 0 8px 40px rgba(124,58,237,.7); }
+    #gai-btn svg { width: 28px; height: 28px; fill: #fff; transition: transform .3s; }
+    #gai-btn.open svg { transform: rotate(180deg); }
+
+    /* Tooltip */
+    #gai-tooltip {
+      position: fixed; bottom: 100px; right: 28px; z-index: 8999;
+      background: rgba(12,19,40,.95); border: 1px solid rgba(124,58,237,.3);
+      color: #e0e8ff; font-size: .78rem; font-weight: 500;
+      padding: 8px 14px; border-radius: 10px; white-space: nowrap;
+      backdrop-filter: blur(12px);
+      animation: tooltipIn .5s cubic-bezier(.16,1,.3,1) 1.5s both;
+      pointer-events: none;
+    }
+    #gai-tooltip::after {
+      content: ''; position: absolute; bottom: -6px; right: 20px;
+      width: 10px; height: 10px;
+      background: rgba(12,19,40,.95); border-right: 1px solid rgba(124,58,237,.3); border-bottom: 1px solid rgba(124,58,237,.3);
+      transform: rotate(45deg);
+    }
+
+    /* Chat window */
+    #gai-window {
+      position: fixed; bottom: 102px; right: 28px; z-index: 8998;
+      width: 370px; height: 560px;
+      background: rgba(7,10,20,.97);
+      border: 1px solid rgba(124,58,237,.25);
+      border-radius: 24px;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 32px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(124,58,237,.1);
+      backdrop-filter: blur(20px);
+      transform: scale(.92) translateY(16px);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform .35s cubic-bezier(.16,1,.3,1), opacity .3s ease;
+    }
+    #gai-window.open {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    /* Header */
+    .gai-header {
+      padding: 16px 18px;
+      background: linear-gradient(135deg, rgba(124,58,237,.18), rgba(6,182,212,.08));
+      border-bottom: 1px solid rgba(124,58,237,.15);
+      display: flex; align-items: center; gap: 12px;
+      position: relative; flex-shrink: 0;
+    }
+    .gai-header::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, #7c3aed, #06b6d4, transparent);
+      background-size: 300% 100%;
+      animation: gradFlow 4s linear infinite;
+    }
+    .gai-avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: linear-gradient(135deg, #7c3aed, #06b6d4);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; flex-shrink: 0;
+      box-shadow: 0 0 0 2px rgba(124,58,237,.3), 0 4px 12px rgba(124,58,237,.3);
+    }
+    .gai-header-info { flex: 1; }
+    .gai-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: .9rem; color: #f0f4ff; }
+    .gai-status { font-size: .7rem; color: #10b981; display: flex; align-items: center; gap: 5px; margin-top: 1px; }
+    .gai-dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 6px #10b981; animation: dotPulse 2s infinite; }
+    .gai-close {
+      background: rgba(255,255,255,.06); border: none; cursor: pointer;
+      color: #7a9cc0; width: 30px; height: 30px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; transition: background .2s, color .2s;
+    }
+    .gai-close:hover { background: rgba(244,63,94,.15); color: #f43f5e; }
+
+    /* Messages */
+    .gai-messages {
+      flex: 1; overflow-y: auto; padding: 16px 14px;
+      display: flex; flex-direction: column; gap: 12px;
+      scroll-behavior: smooth;
+    }
+    .gai-messages::-webkit-scrollbar { width: 4px; }
+    .gai-messages::-webkit-scrollbar-track { background: transparent; }
+    .gai-messages::-webkit-scrollbar-thumb { background: rgba(124,58,237,.3); border-radius: 4px; }
+
+    .gai-msg {
+      max-width: 86%; display: flex; flex-direction: column; gap: 4px;
+      animation: msgIn .4s cubic-bezier(.16,1,.3,1) both;
+    }
+    .gai-msg.bot { align-self: flex-start; }
+    .gai-msg.user { align-self: flex-end; }
+
+    .gai-bubble {
+      padding: 10px 14px; border-radius: 16px;
+      font-size: .84rem; line-height: 1.65; font-weight: 400;
+    }
+    .gai-msg.bot .gai-bubble {
+      background: rgba(124,58,237,.14);
+      border: 1px solid rgba(124,58,237,.2);
+      color: #d0dcf8; border-radius: 4px 16px 16px 16px;
+    }
+    .gai-msg.user .gai-bubble {
+      background: linear-gradient(135deg, rgba(124,58,237,.5), rgba(6,182,212,.3));
+      border: 1px solid rgba(124,58,237,.3);
+      color: #f0f4ff; border-radius: 16px 4px 16px 16px;
+    }
+    .gai-time { font-size: .65rem; color: rgba(120,150,200,.5); padding: 0 4px; }
+    .gai-msg.user .gai-time { text-align: right; }
+
+    /* Typing indicator */
+    .gai-typing { display: flex; align-items: center; gap: 5px; padding: 10px 14px; }
+    .gai-typing span {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: rgba(124,58,237,.6);
+      animation: typingBounce 1.2s ease-in-out infinite;
+    }
+    .gai-typing span:nth-child(2) { animation-delay: .2s; }
+    .gai-typing span:nth-child(3) { animation-delay: .4s; }
+
+    /* Quick replies */
+    .gai-quick-replies {
+      padding: 6px 14px 10px;
+      display: flex; flex-wrap: wrap; gap: 6px;
+    }
+    .gai-qr {
+      background: rgba(124,58,237,.1); border: 1px solid rgba(124,58,237,.25);
+      color: #a78bfa; font-size: .75rem; font-weight: 500;
+      padding: 5px 12px; border-radius: 999px;
+      cursor: pointer; transition: background .2s, border-color .2s, transform .15s;
+      white-space: nowrap;
+    }
+    .gai-qr:hover { background: rgba(124,58,237,.25); border-color: rgba(124,58,237,.5); transform: translateY(-1px); }
+
+    /* Input */
+    .gai-input-row {
+      padding: 12px 14px;
+      border-top: 1px solid rgba(124,58,237,.1);
+      display: flex; gap: 8px; align-items: flex-end;
+      flex-shrink: 0;
+      background: rgba(5,8,17,.8);
+    }
+    #gai-input {
+      flex: 1; background: rgba(124,58,237,.07); border: 1px solid rgba(124,58,237,.2);
+      color: #e0e8ff; font-family: 'DM Sans', sans-serif; font-size: .84rem;
+      padding: 10px 14px; border-radius: 12px; outline: none;
+      resize: none; max-height: 100px; line-height: 1.5;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    #gai-input::placeholder { color: rgba(120,150,200,.4); }
+    #gai-input:focus { border-color: rgba(124,58,237,.5); box-shadow: 0 0 0 3px rgba(124,58,237,.1); }
+    #gai-send {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: linear-gradient(135deg, #7c3aed, #06b6d4);
+      border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform .15s, box-shadow .2s; flex-shrink: 0;
+      box-shadow: 0 2px 12px rgba(124,58,237,.35);
+    }
+    #gai-send:hover { transform: scale(1.08); box-shadow: 0 4px 20px rgba(124,58,237,.55); }
+    #gai-send:disabled { opacity: .4; transform: none; cursor: not-allowed; }
+    #gai-send svg { width: 16px; height: 16px; fill: #fff; }
+
+    /* CTA inside chat */
+    .gai-cta-card {
+      background: linear-gradient(135deg, rgba(124,58,237,.18), rgba(6,182,212,.08));
+      border: 1px solid rgba(124,58,237,.3);
+      border-radius: 14px; padding: 12px 14px; margin-top: 4px;
+    }
+    .gai-cta-card p { font-size: .8rem; color: #a0b4d0; margin-bottom: 10px; line-height: 1.55; }
+    .gai-cta-wa {
+      display: block; text-align: center;
+      background: linear-gradient(135deg, #25d366, #1da851);
+      color: #fff; text-decoration: none; font-weight: 700; font-size: .82rem;
+      padding: 9px 16px; border-radius: 8px; margin-bottom: 6px;
+      transition: transform .15s, box-shadow .2s;
+      box-shadow: 0 2px 12px rgba(37,211,102,.3);
+    }
+    .gai-cta-wa:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37,211,102,.45); }
+    .gai-cta-email {
+      display: block; text-align: center;
+      background: rgba(124,58,237,.15); border: 1px solid rgba(124,58,237,.3);
+      color: #a78bfa; text-decoration: none; font-weight: 600; font-size: .8rem;
+      padding: 8px 16px; border-radius: 8px;
+      transition: background .2s;
+    }
+    .gai-cta-email:hover { background: rgba(124,58,237,.28); }
+
+    /* Powered by */
+    .gai-powered {
+      text-align: center; font-size: .62rem; color: rgba(80,100,140,.5);
+      padding: 6px 0 4px; flex-shrink: 0;
+    }
+
+    /* ═══ KEYFRAMES ═══ */
+    @keyframes gaiBtnPulse {
+      0%,100%{box-shadow:0 4px 24px rgba(124,58,237,.55),0 0 0 0 rgba(124,58,237,.35)}
+      50%{box-shadow:0 4px 24px rgba(124,58,237,.55),0 0 0 10px rgba(124,58,237,0)}
+    }
+    @keyframes gradFlow {
+      0%,100%{background-position:0% 50%}50%{background-position:100% 50%}
+    }
+    @keyframes dotPulse {
+      0%,100%{opacity:1}50%{opacity:.4}
+    }
+    @keyframes typingBounce {
+      0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}
+    }
+    @keyframes msgIn {
+      from{opacity:0;transform:translateY(10px) scale(.97)}
+      to{opacity:1;transform:translateY(0) scale(1)}
+    }
+    @keyframes tooltipIn {
+      from{opacity:0;transform:translateY(6px)}
+      to{opacity:1;transform:translateY(0)}
+    }
+
+    /* Mobile */
+    @media (max-width: 420px) {
+      #gai-window { width: calc(100vw - 20px); right: 10px; bottom: 90px; height: 70vh; }
+      #gai-btn { bottom: 20px; right: 16px; }
+      #gai-tooltip { right: 16px; }
+    }
+
+    /* ═══ API KEY SETUP NOTICE ═══ */
+    #gai-setup {
+      position: absolute; inset: 0; z-index: 10;
+      background: rgba(5,8,17,.96); border-radius: 24px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 28px; gap: 12px; text-align: center;
+      backdrop-filter: blur(12px);
+    }
+    #gai-setup h3 { font-family: 'Syne', sans-serif; font-size: 1rem; color: #f0f4ff; font-weight: 800; }
+    #gai-setup p { font-size: .78rem; color: #7a9cc0; line-height: 1.65; }
+    #gai-setup code {
+      background: rgba(124,58,237,.15); border: 1px solid rgba(124,58,237,.3);
+      color: #a78bfa; font-size: .72rem; padding: 3px 8px; border-radius: 6px; font-family: monospace;
+    }
+    #gai-key-input {
+      width: 100%; background: rgba(124,58,237,.08); border: 1px solid rgba(124,58,237,.25);
+      color: #e0e8ff; font-family: 'DM Sans', sans-serif; font-size: .82rem;
+      padding: 10px 14px; border-radius: 10px; outline: none; margin-top: 4px;
+      transition: border-color .2s;
+    }
+    #gai-key-input:focus { border-color: rgba(124,58,237,.6); }
+    #gai-key-submit {
+      width: 100%; background: linear-gradient(135deg, #7c3aed, #06b6d4);
+      color: #fff; border: none; padding: 11px; border-radius: 10px;
+      font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: .88rem;
+      cursor: pointer; transition: transform .15s, box-shadow .2s;
+      box-shadow: 0 4px 16px rgba(124,58,237,.35);
+    }
+    #gai-key-submit:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(124,58,237,.5); }
+    #gai-skip { font-size: .72rem; color: rgba(120,150,200,.45); cursor: pointer; text-decoration: underline; }
+    #gai-skip:hover { color: #7a9cc0; }
+  </style>
+</head>
+<body>
+  <div class="demo-bg"></div>
+  <div class="demo-text">
+    Your Website Goes Here
+    <span>The AI Sales Assistant floats in the bottom-right corner ↘</span>
+  </div>
+
+  <!-- ════════════════════════════════
+       AI ASSISTANT WIDGET
+  ════════════════════════════════ -->
+
+  <!-- Tooltip -->
+  <div id="gai-tooltip">👋 Ask me anything about my services!</div>
+
+  <!-- Floating Button -->
+  <button id="gai-btn" aria-label="Open AI Assistant">
+    <!-- Bot icon -->
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7H3a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2M6 14v2h2v-2H6m8 0v2h2v-2h-2M3 21l1.77-3.55A7.94 7.94 0 0 0 12 20a7.94 7.94 0 0 0 7.23-2.55L21 21H3Z"/>
+    </svg>
+  </button>
+
+  <!-- Chat Window -->
+  <div id="gai-window" role="dialog" aria-label="AI Sales Assistant">
+
+    <!-- API Key Setup Screen -->
+    <div id="gai-setup">
+      <div style="font-size:2rem;">🔑</div>
+      <h3>Connect Your Claude API Key</h3>
+      <p>Paste your Anthropic API key below to power the assistant.<br/>Get one free at <code>console.anthropic.com</code></p>
+      <input id="gai-key-input" type="password" placeholder="sk-ant-api03-..."/>
+      <button id="gai-key-submit">Activate Assistant ✨</button>
+      <span id="gai-skip">Skip — use demo mode</span>
+    </div>
+
+    <!-- Header -->
+    <div class="gai-header">
+      <div class="gai-avatar">🤖</div>
+      <div class="gai-header-info">
+        <div class="gai-name">Gautam's AI Assistant</div>
+        <div class="gai-status"><span class="gai-dot"></span> Online — Ready to help</div>
+      </div>
+      <button class="gai-close" id="gai-close-btn" aria-label="Close">✕</button>
+    </div>
+
+    <!-- Messages -->
+    <div class="gai-messages" id="gai-messages"></div>
+
+    <!-- Quick Replies -->
+    <div class="gai-quick-replies" id="gai-qr-wrap"></div>
+
+    <!-- Input -->
+    <div class="gai-input-row">
+      <textarea id="gai-input" rows="1" placeholder="Ask about services, pricing..."></textarea>
+      <button id="gai-send" aria-label="Send">
+        <svg viewBox="0 0 24 24"><path d="M2 21L23 12 2 3v7l15 2-15 2z"/></svg>
+      </button>
+    </div>
+    <div class="gai-powered">Powered by Claude AI · Gautam Jaiswal</div>
+  </div>
+
+  <script>
+  // ══════════════════════════════════════════
+  //  CONFIGURATION — Edit this for your site
+  // ══════════════════════════════════════════
+  const OWNER = {
+    name: "Gautam Jaiswal",
+    whatsapp: "917739030740",
+    email: "gautamjaiswal312@gmail.com",
+    services: [
+      { name: "Website Design", price: "₹499 (50% off launch offer, was ₹999)", note: "Includes Google Search Console submission" },
+      { name: "Ad Design", price: "₹239 per ad (was ₹299)" },
+      { name: "Templates", price: "₹159 per template" },
+      { name: "Data Entry", price: "Starting ₹200 per task" },
+      { name: "Excel Spreadsheets", price: "Starting ₹300 per task" },
+      { name: "Google Sheets Setup", price: "Starting ₹250 per task" },
+      { name: "Web Research", price: "Starting ₹200 per task" },
+      { name: "Copy Typing", price: "Starting ₹150 per task" },
+      { name: "Data Cleaning", price: "Starting ₹300 per task" },
+    ],
+    usp: "Fast delivery, 100% accurate work, 1 free revision, affordable Indian prices, mobile-friendly websites",
+  };
+
+  const SYSTEM_PROMPT = `You are a friendly, persuasive AI sales assistant for ${OWNER.name}, a freelance specialist from India. Your goal is to help website visitors understand Gautam's services, answer their questions, and convert them into paying clients.
+
+Services and pricing:
+${OWNER.services.map(s => `- ${s.name}: ${s.price}${s.note ? ' ('+s.note+')' : ''}`).join('\n')}
+
+Key selling points: ${OWNER.usp}
+
+Contact:
+- WhatsApp (fastest): +${OWNER.whatsapp}
+- Email: ${OWNER.email}
+
+Rules:
+1. Be warm, helpful, and conversational — not salesy or pushy
+2. Keep replies SHORT (2-4 sentences max). Use line breaks for readability
+3. Always answer the question first, THEN suggest next steps
+4. When a user shows buying interest or asks "how to start", end your message with the exact text: [SHOW_CTA]
+5. If someone asks something outside Gautam's services, gently steer back: "I can best help with Gautam's services — is there a project I can help you with?"
+6. Use emojis sparingly (1-2 max per message) to keep it human
+7. Mention the 50% launch offer on websites when relevant
+8. Never make up prices or services not listed above
+9. If someone is unhappy or has a complaint, empathize and direct to WhatsApp immediately`;
+
+  // ══════════════════════════════════════════
+  //  STATE
+  // ══════════════════════════════════════════
+  let apiKey = '';
+  let demoMode = false;
+  let chatHistory = [];
+  let isTyping = false;
+  let tooltipHidden = false;
+
+  const QUICK_REPLIES_INITIAL = [
+    "💰 See pricing", "🌐 I need a website",
+    "📊 Data entry help", "⚡ How fast is delivery?"
+  ];
+
+  const DEMO_RESPONSES = [
+    "Hi! I'm Gautam's AI assistant 👋 I can tell you about his services — website design, data entry, Excel, ad design & more. What do you need help with?",
+    "Great question! Gautam offers website design starting at just ₹499 — that's 50% off his regular price. It includes mobile-friendly design AND Google submission so your site shows up in search. Want to know more? [SHOW_CTA]",
+    "Gautam typically delivers within 24 hours for data tasks, and 2-3 days for websites. He also includes 1 free revision so you're always happy with the result! Want to get started? [SHOW_CTA]",
+  ];
+  let demoIdx = 0;
+
+  // ══════════════════════════════════════════
+  //  DOM REFS
+  // ══════════════════════════════════════════
+  const btn       = document.getElementById('gai-btn');
+  const win       = document.getElementById('gai-window');
+  const closeBtn  = document.getElementById('gai-close-btn');
+  const msgs      = document.getElementById('gai-messages');
+  const input     = document.getElementById('gai-input');
+  const sendBtn   = document.getElementById('gai-send');
+  const qrWrap    = document.getElementById('gai-qr-wrap');
+  const setup     = document.getElementById('gai-setup');
+  const keyInput  = document.getElementById('gai-key-input');
+  const keySubmit = document.getElementById('gai-key-submit');
+  const skipBtn   = document.getElementById('gai-skip');
+  const tooltip   = document.getElementById('gai-tooltip');
+
+  // ══════════════════════════════════════════
+  //  UTILS
+  // ══════════════════════════════════════════
+  function timeStr() {
+    const d = new Date();
+    return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  }
+
+  function autoResize() {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 100) + 'px';
+  }
+
+  function scrollBottom() {
+    setTimeout(() => msgs.scrollTop = msgs.scrollHeight, 50);
+  }
+
+  // ══════════════════════════════════════════
+  //  RENDER MESSAGES
+  // ══════════════════════════════════════════
+  function addMessage(text, role) {
+    // Remove CTA trigger from display text
+    const showCTA = text.includes('[SHOW_CTA]');
+    const cleanText = text.replace('[SHOW_CTA]', '').trim();
+
+    const div = document.createElement('div');
+    div.className = `gai-msg ${role}`;
+
+    // Format text — convert newlines, bold **text**
+    let html = cleanText
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+
+    div.innerHTML = `
+      <div class="gai-bubble">${html}</div>
+      <div class="gai-time">${timeStr()}</div>
+    `;
+    msgs.appendChild(div);
+
+    if (showCTA) {
+      const cta = document.createElement('div');
+      cta.className = 'gai-msg bot';
+      cta.innerHTML = `
+        <div class="gai-cta-card">
+          <p>Ready to get started? Contact Gautam directly — he replies fast! ⚡</p>
+          <a class="gai-cta-wa" href="https://wa.me/${OWNER.whatsapp}?text=Hi%20Gautam,%20I%20want%20to%20hire%20you!" target="_blank" rel="noopener">
+            💬 WhatsApp Gautam Now
+          </a>
+          <a class="gai-cta-email" href="mailto:${OWNER.email}" target="_blank" rel="noopener">
+            ✉️ Send an Email Instead
+          </a>
+        </div>
+        <div class="gai-time">${timeStr()}</div>
+      `;
+      msgs.appendChild(cta);
+    }
+
+    scrollBottom();
+  }
+
+  function showTyping() {
+    const el = document.createElement('div');
+    el.className = 'gai-msg bot';
+    el.id = 'gai-typing-ind';
+    el.innerHTML = `<div class="gai-bubble gai-typing"><span></span><span></span><span></span></div>`;
+    msgs.appendChild(el);
+    scrollBottom();
+  }
+
+  function hideTyping() {
+    const el = document.getElementById('gai-typing-ind');
+    if (el) el.remove();
+  }
+
+  function setQuickReplies(replies) {
+    qrWrap.innerHTML = '';
+    if (!replies || replies.length === 0) return;
+    replies.forEach(r => {
+      const btn = document.createElement('button');
+      btn.className = 'gai-qr';
+      btn.textContent = r;
+      btn.onclick = () => { sendMessage(r); qrWrap.innerHTML = ''; };
+      qrWrap.appendChild(btn);
+    });
+  }
+
+  // ══════════════════════════════════════════
+  //  SEND MESSAGE
+  // ══════════════════════════════════════════
+  async function sendMessage(text) {
+    if (isTyping || !text.trim()) return;
+    const userText = text.trim();
+    input.value = '';
+    input.style.height = 'auto';
+    qrWrap.innerHTML = '';
+
+    addMessage(userText, 'user');
+    chatHistory.push({ role: 'user', content: userText });
+
+    isTyping = true;
+    sendBtn.disabled = true;
+    showTyping();
+
+    try {
+      let reply;
+      if (demoMode) {
+        // Demo mode — fake responses
+        await new Promise(r => setTimeout(r, 1200 + Math.random() * 800));
+        reply = DEMO_RESPONSES[demoIdx % DEMO_RESPONSES.length];
+        demoIdx++;
+      } else {
+        // Real Claude API
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true',
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 400,
+            system: SYSTEM_PROMPT,
+            messages: chatHistory,
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error?.message || 'API error');
+        }
+
+        const data = await res.json();
+        reply = data.content?.[0]?.text || "I'm having trouble responding right now. Please contact Gautam directly on WhatsApp! [SHOW_CTA]";
+      }
+
+      hideTyping();
+      chatHistory.push({ role: 'assistant', content: reply.replace('[SHOW_CTA]','').trim() });
+      addMessage(reply, 'bot');
+
+      // Contextual quick replies after first bot response
+      if (chatHistory.length <= 3) {
+        setQuickReplies(["🌐 Website pricing", "📋 Data entry", "🚀 How to start", "⏱️ How fast?"]);
+      }
+
+    } catch (err) {
+      hideTyping();
+      addMessage(`Sorry, something went wrong: ${err.message}. Please contact Gautam directly! [SHOW_CTA]`, 'bot');
+    }
+
+    isTyping = false;
+    sendBtn.disabled = false;
+    input.focus();
+  }
+
+  // ══════════════════════════════════════════
+  //  OPEN / CLOSE
+  // ══════════════════════════════════════════
+  function openChat() {
+    win.classList.add('open');
+    btn.classList.add('open');
+    tooltip.style.display = 'none';
+    if (msgs.children.length === 0 && setup.style.display === 'none') {
+      startGreeting();
+    }
+  }
+
+  function closeChat() {
+    win.classList.remove('open');
+    btn.classList.remove('open');
+  }
+
+  function startGreeting() {
+    setTimeout(() => {
+      addMessage("👋 Hey there! I'm Gautam's AI assistant.\n\nI can tell you about his services, pricing, and help you get started. What brings you here today?", 'bot');
+      setQuickReplies(QUICK_REPLIES_INITIAL);
+    }, 400);
+  }
+
+  btn.addEventListener('click', () => {
+    if (win.classList.contains('open')) closeChat();
+    else openChat();
+  });
+  closeBtn.addEventListener('click', closeChat);
+
+  // ══════════════════════════════════════════
+  //  API KEY SETUP
+  // ══════════════════════════════════════════
+  function activateAssistant() {
+    setup.style.display = 'none';
+    if (msgs.children.length === 0) startGreeting();
+  }
+
+  keySubmit.addEventListener('click', () => {
+    const key = keyInput.value.trim();
+    if (!key.startsWith('sk-ant')) {
+      keyInput.style.borderColor = '#f43f5e';
+      keyInput.placeholder = '⚠️ Invalid key — must start with sk-ant-...';
+      return;
+    }
+    apiKey = key;
+    demoMode = false;
+    activateAssistant();
+  });
+
+  skipBtn.addEventListener('click', () => {
+    demoMode = true;
+    activateAssistant();
+  });
+
+  keyInput.addEventListener('keydown', e => { if (e.key === 'Enter') keySubmit.click(); });
+
+  // ══════════════════════════════════════════
+  //  INPUT HANDLERS
+  // ══════════════════════════════════════════
+  input.addEventListener('input', autoResize);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage(input.value);
+    }
+  });
+  sendBtn.addEventListener('click', () => sendMessage(input.value));
+
+  // Auto-hide tooltip after 6s
+  setTimeout(() => { if (!win.classList.contains('open')) tooltip.style.opacity = '0'; }, 6000);
+  setTimeout(() => { if (!win.classList.contains('open')) tooltip.style.display = 'none'; }, 6500);
+  </script>
+</body>
+</html>
