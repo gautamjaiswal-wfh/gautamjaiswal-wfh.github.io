@@ -334,9 +334,9 @@
     <!-- API Key Setup Screen -->
     <div id="gai-setup">
       <div style="font-size:2rem;">🔑</div>
-      <h3>Connect Your Claude API Key</h3>
-      <p>Paste your Anthropic API key below to power the assistant.<br/>Get one free at <code>console.anthropic.com</code></p>
-      <input id="gai-key-input" type="password" placeholder="sk-ant-api03-..."/>
+      <h3>Connect Gemini API Key</h3>
+      <p>Get your FREE key from <code>aistudio.google.com</code></p>
+      <input id="gai-key-input" type="password" placeholder="AIzaSy..."/>
       <button id="gai-key-submit">Activate Assistant ✨</button>
       <span id="gai-skip">Skip — use demo mode</span>
     </div>
@@ -364,7 +364,7 @@
         <svg viewBox="0 0 24 24"><path d="M2 21L23 12 2 3v7l15 2-15 2z"/></svg>
       </button>
     </div>
-    <div class="gai-powered">Powered by Claude AI · Gautam Jaiswal</div>
+    <div class="gai-powered">Powered by Google Gemini AI · Gautam Jaiswal</div>
   </div>
 
   <script>
@@ -545,7 +545,7 @@ Rules:
     qrWrap.innerHTML = '';
 
     addMessage(userText, 'user');
-    chatHistory.push({ role: 'user', content: userText });
+    chatHistory.push({ role: 'user', parts: [{ text: userText }] });
 
     isTyping = true;
     sendBtn.disabled = true;
@@ -559,34 +559,29 @@ Rules:
         reply = DEMO_RESPONSES[demoIdx % DEMO_RESPONSES.length];
         demoIdx++;
       } else {
-        // Real Claude API
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
+        // Google Gemini API — FREE
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+        const res = await fetch(url, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': 'true',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-6',
-            max_tokens: 400,
-            system: SYSTEM_PROMPT,
-            messages: chatHistory,
+            system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+            contents: chatHistory,
+            generationConfig: { maxOutputTokens: 400, temperature: 0.7 }
           })
         });
 
         if (!res.ok) {
           const err = await res.json();
-          throw new Error(err.error?.message || 'API error');
+          throw new Error(err.error?.message || 'Gemini API error');
         }
 
         const data = await res.json();
-        reply = data.content?.[0]?.text || "I'm having trouble responding right now. Please contact Gautam directly on WhatsApp! [SHOW_CTA]";
+        reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm having trouble responding right now. Please contact Gautam directly on WhatsApp! [SHOW_CTA]";
       }
 
       hideTyping();
-      chatHistory.push({ role: 'assistant', content: reply.replace('[SHOW_CTA]','').trim() });
+      chatHistory.push({ role: 'model', parts: [{ text: reply.replace('[SHOW_CTA]','').trim() }] });
       addMessage(reply, 'bot');
 
       // Contextual quick replies after first bot response
@@ -644,9 +639,9 @@ Rules:
 
   keySubmit.addEventListener('click', () => {
     const key = keyInput.value.trim();
-    if (!key.startsWith('sk-ant')) {
+    if (!key) {
       keyInput.style.borderColor = '#f43f5e';
-      keyInput.placeholder = '⚠️ Invalid key — must start with sk-ant-...';
+      keyInput.placeholder = '⚠️ Please enter your Gemini API key';
       return;
     }
     apiKey = key;
